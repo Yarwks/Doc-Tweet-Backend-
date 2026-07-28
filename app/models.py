@@ -39,5 +39,11 @@ class Question(db.Model):
         return f"<Question {self.title}"
     
 
+class Answer(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    content = db.Column(db.Text, nullable=False)
+    question_id = db.Column(db.Integer, db.ForeignKey('question.id'), nullable=False)
+    author = db.Column(db.String(80), nullable=False)
 
-    
+    def __repr__(self) -> str:
+        return f"<Answer {self.id}"
