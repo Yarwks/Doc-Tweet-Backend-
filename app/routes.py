@@ -4,10 +4,9 @@ from flask import jsonify, request
 from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
-from werkzeug.security import check_password_hash, generate_password_hash
-
-from app import app, db, jwt
-from app.models import Post, Question, User
+from werkzeug.security import generate_password_hash, check_password_hash
+from app.models import User 
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 
 
 @app.route("/")
