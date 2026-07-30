@@ -1,7 +1,9 @@
+
 from flask_login import UserMixin
 from app import db
 from datetime import datetime
 from sqlalchemy import func
+from werkzeug.security import generate_password_hash, check_password_hash
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -10,6 +12,12 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     avatar_url = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=func.now())
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
 
     def __repr__(self):
         return f"<User {self.username}>"
@@ -102,6 +110,7 @@ class Favorite(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     doctor_id = db.Column(db.Integer, db.ForeignKey('doctor.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=func.now())
+    doctor = db.relationship('Doctor', backref='favorited_by', lazy=True)
 
     __table_args__ = (
         db.UniqueConstraint('user_id', 'doctor_id', name='unique_user_doctor_favorite'),

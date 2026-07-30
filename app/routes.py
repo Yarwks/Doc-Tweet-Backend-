@@ -13,7 +13,7 @@ def index():
     return ""
 
 @app.route('/db')
-def db():
+def db_check():
     try:
         db.session.execute(text("SELECT 1"))
         return {"db": "ok"}, 200
@@ -34,7 +34,10 @@ def login():
     if not user or not check_password_hash(user.password_hash, password):
         return {"return": "Invalid username or password"}
 
-    access_token = create_access_token(identity=str(user.id))
+    access_token = create_access_token(
+        identity=str(user.id),
+        additional_claims={"role": "member"}
+    )
     
     return jsonify({
         "message": "Log in success",
