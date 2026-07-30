@@ -4,7 +4,7 @@ from flask import request, jsonify
 import re
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import generate_password_hash, check_password_hash
-from app.models import User 
+from app.models import User, Post, Doctor, Question
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 
 
@@ -86,4 +86,22 @@ def register():
 def load_user(user_id):
     return None
 
-    
+
+@app.route('/api/getposts', methods=['GET'])
+def get_posts():
+    posts = Post.query.all()
+    posts_data = [{"id": post.id, "title": post.title, "content": post.content, "author": post.author} for post in posts]
+    return jsonify(posts_data), 200
+
+@app.route('/api/getquestions', methods=['GET'])
+def get_questions():
+    questions = Question.query.all()
+    questions_data = [{"id": question.id, "question": question.question, "answer": question.answer, "doctor": question.doctor} for question in questions]
+    return jsonify(questions_data), 200
+
+@app.route('/api/doctors', methods=['GET'])
+def get_doctors():
+    doctors = Doctor.query.all()
+    doctors_data = [{"id": doctor.id, "name": doctor.name, "institution": doctor.institution} for doctor in doctors]
+    return jsonify(doctors_data), 200
+
