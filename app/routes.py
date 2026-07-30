@@ -14,7 +14,7 @@ from app.models import User, Post, Doctor, Question, Answer, Favorite
 
 @app.route("/")
 def index():
-    return ""
+    return jsonify({"status": "DocTweet API is active"}), 200
 
 
 @app.route('/db')
@@ -26,10 +26,14 @@ def db_check():
         return {"db": "error", "details": str(e)}, 500
 
 
-@app.route("/api/auth/login", methods=["POST"])
+@app.route("/api/login", methods=["POST", "OPTIONS"])
+@app.route("/api/auth/login", methods=["POST", "OPTIONS"])
 def login():
+    if request.method == "OPTIONS":
+        return jsonify({"status": "OK"}), 200
+
     data = request.get_json() or {}
-    username = (data.get("username") or "").strip()
+    username = (data.get("username") or data.get("email") or "").strip()
     password = data.get("password") or ""
 
     if not username or not password:
@@ -42,7 +46,7 @@ def login():
 
     access_token = create_access_token(
         identity=str(user.id),
-        additional_claims={"role": user.role}
+        additional_claims={"role": getattr(user, "role", "member")}
     )
 
     return jsonify({
@@ -51,13 +55,16 @@ def login():
         "user": {
             "id": user.id,
             "username": user.username,
-            "role": user.role,
+            "role": getattr(user, "role", "member"),
         }
     }), 200
 
 
 @app.route("/api/auth/register/doctor", methods=["POST", "GET"])
 def register_doctor():
+    if request.method == "GET":
+        return jsonify({"msg": "Use POST to submit doctor registration"}), 200
+
     data = request.get_json() or {}
     errors = []
 
@@ -104,6 +111,9 @@ def register_doctor():
 
 @app.route("/api/auth/register/member", methods=["POST", "GET"])
 def register_member():
+    if request.method == "GET":
+        return jsonify({"msg": "Use POST to submit member registration"}), 200
+
     data = request.get_json() or {}
     errors = []
 
@@ -148,12 +158,12 @@ def get_posts():
     posts_data = [
         {
             "id": post.id,
-            "title": post.title,
+            "title": getattr(post, "title", ""),
             "content": post.content,
-            "author": post.author,
-            "image_url": post.image_url,
-            "likes_count": post.likes_count,
-            "created_at": post.created_at.isoformat() if post.created_at else None,
+            "author": getattr(post, "author", ""),
+            "image_url": getattr(post, "image_url", None),
+            "likes_count": getattr(post, "likes_count", 0),
+            "created_at": post.created_at.isoformat() if getattr(post, "created_at", None) else None,
         }
         for post in posts
     ]
@@ -165,17 +175,49 @@ def get_questions():
     questions = Question.query.all()
     questions_data = [
         {
-            "id": question.id,
-            "title": question.title,
-            "content": question.content,
-            "author": question.author,
-            "is_anonymous": question.is_anonymous,
-            "is_resolved": question.is_resolved,
-            "created_at": question.created_at.isoformat() if question.created_at else None,
+            "id": q.id,
+            "title": getattr(q, "title", ""),
+            "content": getattr(q, "content", getattr(q, "question", "")),
+            "author": getattr(q, "author", ""),
+            "is_anonymous": getattr(q, "is_anonymous", False),
+            "is_resolved": getattr(q, "is_resolved", False),
+            "created_at": q.created_at.isoformat() if getattr(q, "created_at", None) else None,
         }
-        for question in questions
+        for q in questions
     ]
     return jsonify(questions_data), 200
+
+
+# NEW: Handle submitting questions (POST) and CORS preflight (OPTIONS)
+@app.route("/api/questions", methods=["POST", "OPTIONS"])
+@jwt_required(optional=True)
+def create_question():
+    if request.method == "OPTIONS":
+        return jsonify({"status": "OK"}), 200
+
+    current_user_id = get_jwt_identity()
+    if not current_user_id:
+        return jsonify({"error": "Unauthorized: Token missing or invalid"}), 401
+
+    data = request.get_json() or {}
+    title = data.get("title", "").strip()
+    content = (data.get("content") or data.get("question") or "").strip()
+
+    if not content:
+        return jsonify({"error": "Question content is required"}), 400
+
+    new_question = Question(
+        title=title,
+        content=content,
+        user_id=int(current_user_id) if hasattr(Question, "user_id") else None
+    )
+    db.session.add(new_question)
+    db.session.commit()
+
+    return jsonify({
+        "message": "Question posted successfully",
+        "id": new_question.id
+    }), 201
 
 
 @app.route("/api/doctors", methods=["GET"])
@@ -186,11 +228,11 @@ def get_doctors():
             "id": doctor.id,
             "username": doctor.username,
             "email": doctor.email,
-            "institution": doctor.institution,
-            "specialization": doctor.specialization,
-            "avatar_url": doctor.avatar_url,
-            "is_verified": doctor.is_verified,
-            "created_at": doctor.created_at.isoformat() if doctor.created_at else None,
+            "institution": getattr(doctor, "institution", ""),
+            "specialization": getattr(doctor, "specialization", ""),
+            "avatar_url": getattr(doctor, "avatar_url", None),
+            "is_verified": getattr(doctor, "is_verified", False),
+            "created_at": doctor.created_at.isoformat() if getattr(doctor, "created_at", None) else None,
         }
         for doctor in doctors
     ]
@@ -218,14 +260,14 @@ def current_user():
     user = User.query.get(current_user_id)
 
     if not user:
-        return jsonify({"message": "User account no longer exists"}), 444
+        return jsonify({"message": "User account no longer exists"}), 404
 
     user_data = {
         "id": user.id,
         "username": user.username,
         "email": user.email,
-        "role": user.role,
-        "is_verified": user.is_verified,
+        "role": getattr(user, "role", "member"),
+        "is_verified": getattr(user, "is_verified", False),
     }
 
     return jsonify(user_data), 200
