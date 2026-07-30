@@ -5,8 +5,11 @@ from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_requir
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import generate_password_hash, check_password_hash
-from app.models import User 
+from app.models import User, Post, Doctor, Question
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from app import app, 
+from werkzeug.utils import secure_filename
+import os
 
 
 @app.route("/")
