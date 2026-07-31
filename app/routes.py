@@ -33,29 +33,37 @@ def login():
         return jsonify({"status": "OK"}), 200
 
     data = request.get_json() or {}
-    username = (data.get("username") or data.get("email") or "").strip()
+    identifier = (data.get("username") or data.get("email") or "").strip()
     password = data.get("password") or ""
 
-    if not username or not password:
+    if not identifier or not password:
         return jsonify({"error": "Missing username or password"}), 400
 
-    user = User.query.filter_by(username=username).first()
+    # Search in User table first (by username or email)
+    account = User.query.filter((User.username == identifier) | (User.email == identifier)).first()
+    role = "member"
 
-    if not user or not check_password_hash(user.password_hash, password):
+    # If not found in User, search in Doctor table
+    if not account:
+        account = Doctor.query.filter((Doctor.username == identifier) | (Doctor.email == identifier)).first()
+        role = "doctor"
+
+    if not account or not check_password_hash(account.password_hash, password):
         return jsonify({"error": "Invalid username or password"}), 401
 
     access_token = create_access_token(
-        identity=str(user.id),
-        additional_claims={"role": getattr(user, "role", "member")}
+        identity=str(account.id),
+        additional_claims={"role": getattr(account, "role", role)}
     )
 
     return jsonify({
         "message": "Log in success",
         "access_token": access_token,
         "user": {
-            "id": user.id,
-            "username": user.username,
-            "role": getattr(user, "role", "member"),
+            "id": account.id,
+            "username": account.username,
+            "email": account.email,
+            "role": getattr(account, "role", role),
         }
     }), 200
 
@@ -98,7 +106,6 @@ def register_doctor():
             password_hash=pw_hash,
             institution=institution,
             specialization=specialization,
-            role="doctor",
         )
         db.session.add(doctor)
         db.session.commit()
@@ -188,7 +195,6 @@ def get_questions():
     return jsonify(questions_data), 200
 
 
-# NEW: Handle submitting questions (POST) and CORS preflight (OPTIONS)
 @app.route("/api/questions", methods=["POST", "OPTIONS"])
 @jwt_required(optional=True)
 def create_question():
@@ -202,14 +208,34 @@ def create_question():
     data = request.get_json() or {}
     title = data.get("title", "").strip()
     content = (data.get("content") or data.get("question") or "").strip()
+    is_anonymous = data.get("is_anonymous", False)
 
-    if not content:
-        return jsonify({"error": "Question content is required"}), 400
+    if not content or not title:
+        return jsonify({"error": "Title and question content are required"}), 400
+
+    # Fetch user or doctor details for the author field
+    user_id = int(current_user_id)
+    account = User.query.get(user_id)
+    doc_id = None
+    
+    if account:
+        author_name = "Anonymous" if is_anonymous else account.username
+    else:
+        account = Doctor.query.get(user_id)
+        if account:
+            doc_id = account.id
+            user_id = None
+            author_name = f"Dr. {account.username}"
+        else:
+            return jsonify({"error": "User account not found"}), 404
 
     new_question = Question(
         title=title,
         content=content,
-        user_id=int(current_user_id) if hasattr(Question, "user_id") else None
+        author=author_name,
+        user_id=user_id,
+        doctor_id=doc_id,
+        is_anonymous=is_anonymous
     )
     db.session.add(new_question)
     db.session.commit()
@@ -257,17 +283,24 @@ def upload():
 @jwt_required()
 def current_user():
     current_user_id = get_jwt_identity()
-    user = User.query.get(current_user_id)
+    user_id = int(current_user_id)
+    
+    account = User.query.get(user_id)
+    role = "member"
 
-    if not user:
+    if not account:
+        account = Doctor.query.get(user_id)
+        role = "doctor"
+
+    if not account:
         return jsonify({"message": "User account no longer exists"}), 404
 
     user_data = {
-        "id": user.id,
-        "username": user.username,
-        "email": user.email,
-        "role": getattr(user, "role", "member"),
-        "is_verified": getattr(user, "is_verified", False),
+        "id": account.id,
+        "username": account.username,
+        "email": account.email,
+        "role": getattr(account, "role", role),
+        "is_verified": getattr(account, "is_verified", False),
     }
 
     return jsonify(user_data), 200
