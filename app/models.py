@@ -12,7 +12,7 @@ class User(UserMixin, db.Model):
     role = db.Column(db.String(80), nullable=False)
     is_verified = db.Column(db.Boolean, nullable=False, default=False)
     avatar_url = db.Column(db.String(255), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)  # Fixed
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -46,7 +46,8 @@ class Doctor(UserMixin, db.Model):
     avatar_url = db.Column(db.String(255), nullable=True)
     is_verified = db.Column(db.Boolean, default=False)
     specialization = db.Column(db.String(120), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)  # Fixed
+    role = db.Column(db.String(80), nullable=False, default="doctor")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def __repr__(self) -> str:
         return f"<Doctor {self.username}>"
@@ -60,6 +61,7 @@ class Doctor(UserMixin, db.Model):
             "specialization": self.specialization,
             "avatar_url": self.avatar_url,
             "is_verified": self.is_verified,
+            "role": self.role,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
@@ -73,7 +75,7 @@ class Post(db.Model):
     doctor_id = db.Column(db.Integer, db.ForeignKey('doctor.id'), nullable=True)
     image_url = db.Column(db.String(255), nullable=True)
     likes_count = db.Column(db.Integer, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)  # Fixed
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def __repr__(self) -> str:
         return f"<Post {self.title}>"
@@ -88,7 +90,7 @@ class Question(db.Model):
     doctor_id = db.Column(db.Integer, db.ForeignKey('doctor.id'), nullable=True)
     is_anonymous = db.Column(db.Boolean, default=False)
     is_resolved = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)  # Fixed
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     answers = db.relationship('Answer', backref='question', lazy='dynamic', cascade='all, delete-orphan')
 
     def __repr__(self) -> str:
@@ -104,7 +106,7 @@ class Answer(db.Model):
     doctor_id = db.Column(db.Integer, db.ForeignKey('doctor.id'), nullable=True)
     is_doctor_answer = db.Column(db.Boolean, default=False)
     likes_count = db.Column(db.Integer, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)  # Fixed
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def __repr__(self) -> str:
         return f"<Answer {self.id}>"
@@ -114,7 +116,7 @@ class Favorite(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     doctor_id = db.Column(db.Integer, db.ForeignKey('doctor.id'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)  # Fixed
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     doctor = db.relationship('Doctor', backref='favorited_by', lazy=True)
 
     __table_args__ = (
