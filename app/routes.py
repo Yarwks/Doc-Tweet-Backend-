@@ -206,7 +206,9 @@ def upload():
         return jsonify({"error": "No selected file"}), 400
     if file:
         filename = secure_filename(file.filename)
-        file.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
+        upload_dir = app.config["UPLOAD_FOLDER"]
+        os.makedirs(upload_dir, exist_ok=True)
+        file.save(os.path.join(upload_dir, filename))
         return jsonify({"success": True, "filename": filename}), 200
     return jsonify({"error": "Upload failed"}), 400
 
