@@ -48,6 +48,7 @@ class Doctor(UserMixin, db.Model):
     avatar_url = db.Column(db.String(255), nullable=True)
     is_verified = db.Column(db.Boolean, default=False)
     specialization = db.Column(db.String(120), nullable=True)
+    role = db.Column(db.String(80), nullable=False, default="doctor")
     created_at = db.Column(db.DateTime, default=func.now)
 
     def __repr__(self) -> str:
@@ -62,6 +63,7 @@ class Doctor(UserMixin, db.Model):
             "specialization": self.specialization,
             "avatar_url": self.avatar_url,
             "is_verified": self.is_verified,
+            "role": self.role,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
