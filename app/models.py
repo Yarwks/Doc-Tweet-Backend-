@@ -48,7 +48,7 @@ class Doctor(UserMixin, db.Model):
     is_verified = db.Column(db.Boolean, default=False)
     specialization = db.Column(db.String(120), nullable=True)
     role = db.Column(db.String(80), nullable=False, default="doctor")
-    created_at = db.Column(db.DateTime, default=func.now)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def __repr__(self) -> str:
         return f"<Doctor {self.username}>"
