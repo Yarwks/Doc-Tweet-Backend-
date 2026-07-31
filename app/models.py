@@ -77,6 +77,9 @@ class Post(db.Model):
     likes_count = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    user_author = db.relationship('User', foreign_keys=[user_id], backref='posts')
+    doctor_author = db.relationship('Doctor', foreign_keys=[doctor_id], backref='posts')
+
     def __repr__(self) -> str:
         return f"<Post {self.title}>"
 
@@ -93,6 +96,9 @@ class Question(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     answers = db.relationship('Answer', backref='question', lazy='dynamic', cascade='all, delete-orphan')
 
+    user_author = db.relationship('User', foreign_keys=[user_id], backref='questions')
+    doctor_author = db.relationship('Doctor', foreign_keys=[doctor_id], backref='questions')
+
     def __repr__(self) -> str:
         return f"<Question {self.title}>"
 
@@ -107,6 +113,9 @@ class Answer(db.Model):
     is_doctor_answer = db.Column(db.Boolean, default=False)
     likes_count = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user_author = db.relationship('User', foreign_keys=[user_id], backref='answers')
+    doctor_author = db.relationship('Doctor', foreign_keys=[doctor_id], backref='answers')
 
     def __repr__(self) -> str:
         return f"<Answer {self.id}>"

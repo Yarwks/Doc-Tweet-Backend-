@@ -287,7 +287,7 @@ def upload():
 def current_user():
     current_user_id = get_jwt_identity()
     user_id = int(current_user_id)
-    
+
     account = User.query.get(user_id)
     role = "member"
 
@@ -305,176 +305,177 @@ def current_user():
         "role": getattr(account, "role", role),
         "is_verified": getattr(account, "is_verified", False),
     }
+    return jsonify(user_data), 200
+
 
 @app.route('/api/feed/home', methods=['GET'])
 def home_feed():
     """
     Home feed: combined posts and questions.
-    Query: ?type=all|posts|questions&page=1&per_page=20
+    Query: ?content_type=all|posts|questions&page=1&per_page=20
     """
     page = request.args.get('page', 1, type=int)
     per_page = min(request.args.get('per_page', 20, type=int), 50)
     content_type = request.args.get('content_type', 'all')
     results = []
 
-    # Posts
     if content_type in ['all', 'posts']:
-    posts = Post.query.order_by(Post.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
-    for post in posts.items:
-        if post.doctor_id and post.doctor_author:
-            author = {
-                'id': post.doctor_author.id,
-                'username': post.doctor_author.username,
-                'is doctor': True,
-                'is verified': post.doctor_author.is_verified,
-                'avatar_url': post.doctor_author.avatar_url,
-                'specialization': post.doctor_author.specialization
-            }
-        elif post.user_id and post.user_author:
-            author = {
-                'id': post.user_author.id,
-                'username': post.user_author.username,
-                'is doctor': False,
-                'is verified': False,
-                'avatar_url': post.user_author.avatar_url,
-                'specialization': None
-            }
-        else:
-            author = {'username': post.author, 'is doctor': False}
-
-        results.append({
-            'id': post.id,
-            'type': 'post',
-            'title': post.title,
-            'content': post.content,
-            'image_url': post.image_url,
-            'created_at': post.created_at.isoformat() if post.created_at else None,
-            'likes_count': post.likes_count or 0,
-            'author': author
-        })
-
-# Questions
-if content_type in ['all', 'questions']:
-    questions = Question.query.order_by(Question.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
-    for q in questions.items:
-        if q.is_anonymous:
-            author = None
-        elif q.doctor_id and q.doctor_author:
-            author = {
-                'id': q.doctor_author.id,
-                'username': q.doctor_author.username,
-                'is doctor': True,
-                'is verified': q.doctor_author.is_verified,
-                'avatar_url': q.doctor_author.avatar_url,
-                'specialization': q.doctor_author.specialization
-            }
-        elif q.user_id and q.user_author:  
-            author = {
-                'id': q.user_author.id,
-                'username': q.user_author.username,
-                'is doctor': False,
-                'is verified': False,
-                'avatar_url': q.user_author.avatar_url,
-                'specialization': None
-            }
-        else:
-            author = {'username': q.author, 'is doctor': False}
-
-# Top 3 Answers
-        top_answers = q.answers.order_by(Answer.created_at.asc()).limit(3).all()
-        answers_preview = []
-        for ans in top_answers:
-            if ans.doctor_id and ans.doctor_author:
-                ans_author = {
-                    'id': ans.doctor_author.id,
-                    'username': ans.doctor_author.username,
-                    'is doctor': True,
-                    'is verified': ans.doctor_author.is_verified,
-                   }
-            elif ans.user_id and ans.user_author:
-                ans_author = {
-                    'id': ans.user_author.id,
-                    'username': ans.user_author.username,
-                    'is doctor': False,
-                    'is verified': False,
+        posts = Post.query.order_by(Post.created_at.desc()).all()
+        for post in posts:
+            if post.doctor_id and post.doctor_author:
+                author = {
+                    'id': post.doctor_author.id,
+                    'username': post.doctor_author.username,
+                    'is_doctor': True,
+                    'is_verified': post.doctor_author.is_verified,
+                    'avatar_url': post.doctor_author.avatar_url,
+                    'specialization': post.doctor_author.specialization,
+                }
+            elif post.user_id and post.user_author:
+                author = {
+                    'id': post.user_author.id,
+                    'username': post.user_author.username,
+                    'is_doctor': False,
+                    'is_verified': False,
+                    'avatar_url': post.user_author.avatar_url,
+                    'specialization': None,
                 }
             else:
-                ans_author = {'username': ans.author, 'is doctor': False}
+                author = {'username': post.author, 'is_doctor': False}
 
-            answers_preview.append({
-                'id': ans.id,
-                'content': ans.content[:200] + '...' if len(ans.content) > 200 else ans.content,
-                'is_doctor_answer': ans.is_doctor_answer,
-                'created_at': ans.created_at.isoformat() if ans.created_at else None,
-                'author': ans_author
+            results.append({
+                'id': post.id,
+                'type': 'post',
+                'title': post.title,
+                'content': post.content,
+                'image_url': post.image_url,
+                'created_at': post.created_at.isoformat() if post.created_at else None,
+                'likes_count': post.likes_count or 0,
+                'author': author,
             })
-        results.append({
-            'id': q.id,
-            'type': 'question',
-            'title': q.title,
-            'content': q.content,
-            'is_anonymous': q.is_anonymous or False,
-            'is_resolved': q.is_resolved or False,
-            'created_at': q.created_at.isoformat() if q.created_at else None,
-            'answer_count': q.answers.count(),
-            'author': author,
-            'top_answers': answers_preview
-        })
 
-# Sort combined feed by date
-if content_type == 'all':
-    results.sort(key=lambda x: x['created_at'] or '', reverse=True)
-    start = (page - 1) * per_page
-    end = start + per_page
-    results = results[start:end]
+    if content_type in ['all', 'questions']:
+        questions = Question.query.order_by(Question.created_at.desc()).all()
+        for q in questions:
+            if q.is_anonymous:
+                author = None
+            elif q.doctor_id and q.doctor_author:
+                author = {
+                    'id': q.doctor_author.id,
+                    'username': q.doctor_author.username,
+                    'is_doctor': True,
+                    'is_verified': q.doctor_author.is_verified,
+                    'avatar_url': q.doctor_author.avatar_url,
+                    'specialization': q.doctor_author.specialization,
+                }
+            elif q.user_id and q.user_author:
+                author = {
+                    'id': q.user_author.id,
+                    'username': q.user_author.username,
+                    'is_doctor': False,
+                    'is_verified': False,
+                    'avatar_url': q.user_author.avatar_url,
+                    'specialization': None,
+                }
+            else:
+                author = {'username': q.author, 'is_doctor': False}
 
-return jsonify({'page': page, 'per_page': per_page, 'results': results}), 200
+            top_answers = q.answers.order_by(Answer.created_at.asc()).limit(3).all()
+            answers_preview = []
+            for ans in top_answers:
+                if ans.doctor_id and ans.doctor_author:
+                    ans_author = {
+                        'id': ans.doctor_author.id,
+                        'username': ans.doctor_author.username,
+                        'is_doctor': True,
+                        'is_verified': ans.doctor_author.is_verified,
+                    }
+                elif ans.user_id and ans.user_author:
+                    ans_author = {
+                        'id': ans.user_author.id,
+                        'username': ans.user_author.username,
+                        'is_doctor': False,
+                        'is_verified': False,
+                    }
+                else:
+                    ans_author = {'username': ans.author, 'is_doctor': False}
+
+                answers_preview.append({
+                    'id': ans.id,
+                    'content': ans.content[:200] + '...' if len(ans.content) > 200 else ans.content,
+                    'is_doctor_answer': ans.is_doctor_answer,
+                    'created_at': ans.created_at.isoformat() if ans.created_at else None,
+                    'author': ans_author,
+                })
+
+            results.append({
+                'id': q.id,
+                'type': 'question',
+                'title': q.title,
+                'content': q.content,
+                'is_anonymous': q.is_anonymous or False,
+                'is_resolved': q.is_resolved or False,
+                'created_at': q.created_at.isoformat() if q.created_at else None,
+                'answer_count': q.answers.count(),
+                'author': author,
+                'top_answers': answers_preview,
+            })
+
+    if content_type == 'all':
+        results.sort(key=lambda x: x['created_at'] or '', reverse=True)
+        start = (page - 1) * per_page
+        end = start + per_page
+        results = results[start:end]
+
+    return jsonify({'page': page, 'per_page': per_page, 'results': results}), 200
 
 
-@app.route('api/feed/questions/<int:question_id>/answers', methods=['GET'])
+@app.route('/api/feed/questions/<int:question_id>/answers', methods=['GET'])
 def get_question_answers(question_id):
     """Get all answers for a specific question."""
     question = Question.query.get_or_404(question_id)
     page = request.args.get('page', 1, type=int)
     answers = question.answers.order_by(Answer.created_at.desc()).paginate(page=page, per_page=20, error_out=False)
     answers_data = []
+
     for ans in answers.items:
         if ans.doctor_id and ans.doctor_author:
             author = {
                 'id': ans.doctor_author.id,
                 'username': ans.doctor_author.username,
-                'is doctor': True,
-                'is verified': ans.doctor_author.is_verified,
+                'is_doctor': True,
+                'is_verified': ans.doctor_author.is_verified,
                 'avatar_url': ans.doctor_author.avatar_url,
-                'specialization': ans.doctor_author.specialization
+                'specialization': ans.doctor_author.specialization,
             }
         elif ans.user_id and ans.user_author:
             author = {
                 'id': ans.user_author.id,
                 'username': ans.user_author.username,
-                'is doctor': False,
-                'is verified': False,
+                'is_doctor': False,
+                'is_verified': False,
                 'avatar_url': ans.user_author.avatar_url,
-                'specialization': None
+                'specialization': None,
             }
-        else:  
-            author = {'username': ans.author, 'is doctor': False}
+        else:
+            author = {'username': ans.author, 'is_doctor': False}
+
         answers_data.append({
             'id': ans.id,
             'content': ans.content,
             'is_doctor_answer': ans.is_doctor_answer,
             'likes_count': ans.likes_count or 0,
             'created_at': ans.created_at.isoformat() if ans.created_at else None,
-            'author': author
+            'author': author,
         })
 
-        return jsonify({
-            'question_id': question.id,
-            'question_title': question.title,
-            'question_content': question.content,
-            'is_anonymous': question.is_anonymous or False,
-            'is_resolved': question.is_resolved or False,
-            'answers': answers_data,
-            'page': page,
-            'total_pages': answers.pages,
-        }), 200
+    return jsonify({
+        'question_id': question.id,
+        'question_title': question.title,
+        'question_content': question.content,
+        'is_anonymous': question.is_anonymous or False,
+        'is_resolved': question.is_resolved or False,
+        'answers': answers_data,
+        'page': page,
+        'total_pages': answers.pages,
+    }), 200

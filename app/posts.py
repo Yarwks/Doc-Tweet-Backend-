@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from app import db
-from models import Post, Question
+from app.models import Post, Question
 
 posts_bp = Blueprint('posts', __name__)
 
